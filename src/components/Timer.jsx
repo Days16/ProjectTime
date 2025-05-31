@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react"
 
-export default function Timer({ user }) {
-  const [startTime, setStartTime] = useState(null)
+export default function Timer({ user, onStop }) {
   const [elapsed, setElapsed] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
 
@@ -9,7 +8,7 @@ export default function Timer({ user }) {
     let interval = null
     if (isRunning) {
       interval = setInterval(() => {
-        setElapsed((prev) => prev + 1)
+        setElapsed(prev => prev + 1)
       }, 1000)
     } else if (!isRunning && interval) {
       clearInterval(interval)
@@ -18,10 +17,7 @@ export default function Timer({ user }) {
   }, [isRunning])
 
   const handleStart = () => {
-    if (!isRunning) {
-      setIsRunning(true)
-      setStartTime(Date.now())
-    }
+    if (!isRunning) setIsRunning(true)
   }
 
   const handlePause = () => {
@@ -35,6 +31,7 @@ export default function Timer({ user }) {
     const prev = Number(localStorage.getItem(key)) || 0
     localStorage.setItem(key, String(prev + elapsed))
     setElapsed(0)
+    if (onStop) onStop()
   }
 
   const formatTime = (secs) => {
