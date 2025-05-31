@@ -1,67 +1,57 @@
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 
-const formatTime = (seconds) => {
-  const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0')
-  const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')
-  const secs = String(seconds % 60).padStart(2, '0')
-  return `${hrs}:${mins}:${secs}`
-}
-
-export default function Timer() {
-  const [seconds, setSeconds] = useState(() => {
-    return Number(localStorage.getItem("time")) || 0
-  })
+export default function Timer({ user }) {
+  const [startTime, setStartTime] = useState(null)
+  const [elapsed, setElapsed] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
 
   useEffect(() => {
-    let interval
+    let interval = null
     if (isRunning) {
       interval = setInterval(() => {
-        setSeconds((prev) => {
-          const newTime = prev + 1
-          localStorage.setItem("time", newTime)
-          return newTime
-        })
+        setElapsed((prev) => prev + 1)
       }, 1000)
-    } else if (!isRunning && seconds !== 0) {
+    } else if (!isRunning && interval) {
       clearInterval(interval)
     }
     return () => clearInterval(interval)
   }, [isRunning])
 
-  const handleStart = () => setIsRunning(true)
-  const handlePause = () => setIsRunning(false)
-  const handleReset = () => {
+  const handleStart = () => {
+    if (!isRunning) {
+      setIsRunning(true)
+      setStartTime(Date.now())
+    }
+  }
+
+  const handlePause = () => {
     setIsRunning(false)
-    setSeconds(0)
-    localStorage.removeItem("time")
+  }
+
+  const handleStop = () => {
+    setIsRunning(false)
+    const currentDate = new Date().toISOString().split("T")[0]
+    const key = `worktime_${user}_${currentDate}`
+    const prev = Number(localStorage.getItem(key)) || 0
+    localStorage.setItem(key, String(prev + elapsed))
+    setElapsed(0)
+  }
+
+  const formatTime = (secs) => {
+    const h = Math.floor(secs / 3600).toString().padStart(2, "0")
+    const m = Math.floor((secs % 3600) / 60).toString().padStart(2, "0")
+    const s = (secs % 60).toString().padStart(2, "0")
+    return `${h}:${m}:${s}`
   }
 
   return (
-    <div className="bg-primary p-8 rounded-2xl shadow-lg max-w-md mx-auto text-center">
-      <h1 className="text-4xl font-bold bg-gradient-to-r from-gradientStart to-gradientEnd bg-clip-text text-transparent mb-6">
-        Asistencia Diaria
-      </h1>
-      <p className="text-5xl font-mono mb-6">{formatTime(seconds)}</p>
-      <div className="flex justify-center gap-4">
-        <button
-          onClick={handleStart}
-          className="px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 transition"
-        >
-          Iniciar
-        </button>
-        <button
-          onClick={handlePause}
-          className="px-4 py-2 rounded-xl bg-yellow-600 hover:bg-yellow-700 transition"
-        >
-          Pausar
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 transition"
-        >
-          Detener
-        </button>
+    <div className="timer-container">
+      <h1 className="timer-title">Temporizador</h1>
+      <div className="time-display">{formatTime(elapsed)}</div>
+      <div className="button-group">
+        <button onClick={handleStart}>Iniciar</button>
+        <button onClick={handlePause}>Pausar</button>
+        <button onClick={handleStop}>Detener</button>
       </div>
     </div>
   )
