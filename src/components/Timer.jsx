@@ -31,6 +31,7 @@ export default function Timer({ user, onStop }) {
     const prev = Number(localStorage.getItem(key)) || 0
     localStorage.setItem(key, String(prev + elapsed))
     setElapsed(0)
+    window.location.reload()
     if (onStop) onStop()
   }
 
