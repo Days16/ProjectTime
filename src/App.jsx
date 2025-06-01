@@ -1,33 +1,40 @@
-import React, { useState, useEffect } from "react"
-import Login from "./components/Login"
-import Timer from "./components/Timer"
-import ExportImportData from "./components/ExportImportData"
-import History from "./components/History"
+// src/App.jsx
+import React, { useEffect, useState } from "react";
+import { auth } from "./components/auth/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import Login from "./components/auth/Login";
+import Timer from "./components/Timer";
+import ExportImportData from "./components/ExportImportData";
+import History from "./components/History";
+import "./index.css"
 
 function App() {
-  const [user, setUser] = useState(null)
-  const [refreshHistory, setRefreshHistory] = useState(false)
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user")
-    if (stored) setUser(stored)
-  }, [])
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
+
+  const handleLogout = () => signOut(auth);
+
+  if (!user) return <Login />;
 
   return (
     <div className="app-container">
-      {!user ? (
-        <div className="login-container">
-          <Login setUser={setUser} />
-        </div>
-      ) : (
-        <div className="logged-in-container">
-          <Timer user={user} onStop={() => setRefreshHistory(prev => !prev)} />
-          <History user={user} refresh={refreshHistory} />
-          <ExportImportData user={user} />
-        </div>
-      )}
+      <div className="logged-in-container">
+        <h1 className="timer-title">Bienvenido, {user.displayName || user.email}</h1>
+
+        <Timer user={user} />
+        <ExportImportData user={user} />
+        <History user={user} />
+
+        <button className="btn" onClick={handleLogout}>
+          Cerrar sesión
+        </button>
+      </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
