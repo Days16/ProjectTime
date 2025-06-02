@@ -1,12 +1,14 @@
-// src/App.jsx
 import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { auth } from "./components/auth/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import Login from "./components/auth/Login";
-import Timer from "./components/Timer";
-import ExportImportData from "./components/ExportImportData";
-import History from "./components/History";
-import "./index.css"
+import Navbar from "./components/Navbar";
+import MainMenu from "./components/MainMenu";
+import TimerPage from "./pages/TimerPage";
+import AsistenciaPage from "./pages/AsistenciaPage";
+import ProyectosPage from "./pages/ProyectosPage";
+import "./index.css";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -21,17 +23,20 @@ function App() {
   if (!user) return <Login />;
 
   return (
-    <div className="app-container">
-      <div className="logged-in-container">
-        <h1 className="timer-title">Bienvenido, {user.displayName || user.email}</h1>
-        <Timer user={user} />
-        <ExportImportData user={user} />
-        <History user={user} />
-        <button className="btn" onClick={handleLogout}>
-          Cerrar sesión
-        </button>
+    <Router>
+      <div className="app-container">
+        <Navbar onLogout={handleLogout} />
+        <div className="logged-in-container">
+          <Routes>
+            <Route path="/" element={<Navigate to="/inicio" />} />
+            <Route path="/home" element={<MainMenu />} />
+            <Route path="/temporizador" element={<TimerPage user={user} />} />
+            <Route path="/asistencia" element={<AsistenciaPage />} />
+            <Route path="/proyectos" element={<ProyectosPage />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </Router>
   );
 }
 
