@@ -28,7 +28,7 @@ function App() {
         <Navbar onLogout={handleLogout} />
         <div className="logged-in-container">
           <Routes>
-            <Route path="/" element={<Navigate to="/inicio" />} />
+            <Route path="/" element={<Navigate to="/home" />} />
             <Route path="/home" element={<MainMenu />} />
             <Route path="/temporizador" element={<TimerPage user={user} />} />
             <Route path="/asistencia" element={<AsistenciaPage />} />
