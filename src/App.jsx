@@ -24,11 +24,9 @@ function App() {
     <div className="app-container">
       <div className="logged-in-container">
         <h1 className="timer-title">Bienvenido, {user.displayName || user.email}</h1>
-
         <Timer user={user} />
         <ExportImportData user={user} />
         <History user={user} />
-
         <button className="btn" onClick={handleLogout}>
           Cerrar sesión
         </button>

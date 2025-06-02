@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { saveHistoryEntry } from "./database/firestoreService" // importar esto
 
 export default function Timer({ user, onStop }) {
   const [elapsed, setElapsed] = useState(0)
@@ -24,12 +25,24 @@ export default function Timer({ user, onStop }) {
     setIsRunning(false)
   }
 
-  const handleStop = () => {
+  const handleStop = async () => {
     setIsRunning(false)
+
     const currentDate = new Date().toISOString().split("T")[0]
-    const key = `worktime_${user}_${currentDate}`
+    const key = `worktime_${user.uid}_${currentDate}`
     const prev = Number(localStorage.getItem(key)) || 0
-    localStorage.setItem(key, String(prev + elapsed))
+    const total = prev + elapsed
+    localStorage.setItem(key, String(total))
+
+    try {
+      await saveHistoryEntry(user.uid, {
+        date: currentDate,
+        seconds: elapsed
+      })
+    } catch (error) {
+      console.error("Error guardando entrada de historial:", error)
+    }
+
     setElapsed(0)
     window.location.reload()
     if (onStop) onStop()
