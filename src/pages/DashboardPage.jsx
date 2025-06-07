@@ -8,7 +8,7 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-2xl text-[#00ffff] animate-pulse">Cargando...</div>
       </div>
     );
@@ -17,7 +17,7 @@ function Dashboard() {
   if (!user) return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f] p-4">
+    <div className="min-h-screen flex items-center justify-center  p-4">
       <div className="w-full max-w-md p-8 bg-[#1a1a1a] rounded-[20px] shadow-[0_0_25px_rgba(0,255,255,0.05)]">
         <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-[#ff66cc] to-[#00ffff] bg-clip-text text-transparent">
           Bienvenido
