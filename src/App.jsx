@@ -1,43 +1,86 @@
-import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { auth } from "./components/auth/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import Login from "./components/auth/Login";
-import Navbar from "./components/Navbar";
-import MainMenu from "./components/MainMenu";
-import TimerPage from "./pages/TimerPage";
-import AsistenciaPage from "./pages/AsistenciaPage";
-import ProyectosPage from "./pages/ProyectosPage";
-import "./index.css";
+import React from "react"
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+import { AuthProvider } from "./context/AuthContext"
+import { NotificationProvider } from "./components/Notification"
+import { ThemeProvider } from "./context/ThemeContext"
+import ProtectedRoute from "./auth/ProtectedRoute"  
+import Navbar from "./components/Navbar"
+import MainMenu from "./components/MainMenu"
+import Login from "./pages/Login"
+import Dashboard from "./components/Dashboard"
+import History from "./components/History"
+import HourManagementPage from "./pages/HourManagementPage"
+import ProyectosPage from "./pages/ProyectosPage"
+import AsistenciaPage from "./pages/AsistenciaPage"
 
 function App() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
-  }, []);
-
-  const handleLogout = () => signOut(auth);
-
-  if (!user) return <Login />;
-
   return (
     <Router>
-      <div className="app-container">
-        <Navbar onLogout={handleLogout} />
-        <div className="logged-in-container">
-          <Routes>
-            <Route path="/" element={<Navigate to="/home" />} />
-            <Route path="/home" element={<MainMenu />} />
-            <Route path="/temporizador" element={<TimerPage user={user} />} />
-            <Route path="/asistencia" element={<AsistenciaPage />} />
-            <Route path="/proyectos" element={<ProyectosPage />} />
-          </Routes>
-        </div>
-      </div>
+      <AuthProvider>
+        <ThemeProvider>
+          <NotificationProvider>
+            <div className="min-h-screen">
+              <Navbar />
+              <div className="container mx-auto px-4 py-8">
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <MainMenu />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/history"
+                    element={
+                      <ProtectedRoute>
+                        <History />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/hour-management"
+                    element={
+                      <ProtectedRoute>
+                        <HourManagementPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/proyectos"
+                    element={
+                      <ProtectedRoute>
+                        <ProyectosPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/asistencia"
+                    element={
+                      <ProtectedRoute>
+                        <AsistenciaPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
+            </div>
+          </NotificationProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </Router>
-  );
+  )
 }
 
-export default App;
+export default App
