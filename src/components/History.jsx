@@ -13,6 +13,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  deleteDoc,
+  doc,
 } from 'firebase/firestore'
 import { db } from '../auth/firebase'
 
@@ -31,6 +33,8 @@ export default function History() {
   })
   const [timeEntries, setTimeEntries] = useState([])
   const [isAddingEntry, setIsAddingEntry] = useState(false)
+  const [groupedEntries, setGroupedEntries] = useState({})
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false)
@@ -51,6 +55,26 @@ export default function History() {
       fetchTimeEntries()
     }
   }, [user])
+
+  useEffect(() => {
+    // Agrupar entradas por proyecto
+    const grouped = timeEntries.reduce((acc, entry) => {
+      if (!acc[entry.project]) {
+        acc[entry.project] = {
+          totalMinutes: 0,
+          entries: [],
+          lastUpdated: null
+        };
+      }
+      acc[entry.project].totalMinutes += entry.totalMinutes;
+      acc[entry.project].entries.push(entry);
+      if (!acc[entry.project].lastUpdated || entry.timestamp > acc[entry.project].lastUpdated) {
+        acc[entry.project].lastUpdated = entry.timestamp;
+      }
+      return acc;
+    }, {});
+    setGroupedEntries(grouped);
+  }, [timeEntries]);
 
   const fetchHistory = async () => {
     try {
@@ -225,6 +249,24 @@ export default function History() {
     return `${hours}h ${mins}m`
   }
 
+  const handleDeleteProject = async (project) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar todos los registros del proyecto "${project}"?`)) return;
+
+    try {
+      setIsDeleting(true);
+      const entriesToDelete = groupedEntries[project].entries;
+      const deletePromises = entriesToDelete.map(entry => 
+        deleteDoc(doc(db, 'timeEntries', entry.id))
+      );
+      await Promise.all(deletePromises);
+      await fetchTimeEntries();
+    } catch (error) {
+      console.error('Error al eliminar proyecto:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="page-container">
       <div className="content-container">
@@ -234,6 +276,7 @@ export default function History() {
             <button
               onClick={() => setIsAddingEntry(true)}
               className="btn"
+              disabled={isDeleting}
             >
               Registrar Tiempo
             </button>
@@ -281,12 +324,14 @@ export default function History() {
                 <button
                   onClick={() => setIsAddingEntry(false)}
                   className="btn-cancel"
+                  disabled={isDeleting}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAddEntry}
                   className="btn-success"
+                  disabled={isDeleting}
                 >
                   Guardar
                 </button>
@@ -329,23 +374,69 @@ export default function History() {
           </div>
 
           <div className="grid grid-cols-1 gap-6">
-            {timeEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="bg-[#2a2a2a] p-6 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">{entry.project}</h3>
-                    <p className="text-gray-400 mt-1">{entry.description}</p>
+            {Object.entries(groupedEntries)
+              .sort(([, a], [, b]) => b.lastUpdated - a.lastUpdated)
+              .map(([project, data]) => (
+                <div
+                  key={project}
+                  className="bg-[#2a2a2a] p-6 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-semibold text-white">{project}</h3>
+                        <button
+                          onClick={() => handleDeleteProject(project)}
+                          className="text-red-500 hover:text-red-400 transition-colors"
+                          disabled={isDeleting}
+                          title="Eliminar proyecto"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-gray-400 mt-1">
+                        {data.entries.length} {data.entries.length === 1 ? 'registro' : 'registros'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#00ffff] font-medium text-lg">
+                        Total: {formatDuration(data.totalMinutes)}
+                      </p>
+                      <p className="text-gray-500 text-sm">
+                        Último registro: {formatDate(data.lastUpdated)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[#00ffff] font-medium">{formatDuration(entry.totalMinutes)}</p>
-                    <p className="text-gray-500 text-sm">{formatDate(entry.timestamp)}</p>
+                  <div className="mt-4 space-y-2">
+                    {data.entries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="bg-[#333] p-3 rounded-lg flex justify-between items-center"
+                      >
+                        <p className="text-gray-400">{entry.description || 'Sin descripción'}</p>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-[#00ffff]">{formatDuration(entry.totalMinutes)}</p>
+                            <p className="text-gray-500 text-sm">{formatDate(entry.timestamp)}</p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            className="text-red-500 hover:text-red-400 transition-colors"
+                            disabled={isDeleting}
+                            title="Eliminar registro"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>
