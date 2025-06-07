@@ -15,6 +15,7 @@ import {
   serverTimestamp,
   deleteDoc,
   doc,
+  updateDoc,
 } from 'firebase/firestore'
 import { db } from '../auth/firebase'
 
@@ -263,6 +264,22 @@ export default function History() {
     }
   };
 
+  const handleEditEntry = async (entryId, newDescription) => {
+    try {
+      setIsLoading(true);
+      const entryRef = doc(db, 'timeEntries', entryId);
+      await updateDoc(entryRef, {
+        description: newDescription,
+      });
+      await fetchTimeEntries();
+      setEditingEntry(null);
+    } catch (error) {
+      console.error('Error al editar entrada:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="page-container">
@@ -280,7 +297,7 @@ export default function History() {
   return (
     <div className="page-container">
       <div className="content-container">
-        <div className="history-container">
+    <div className="history-container">
           <div className="flex justify-between items-center mb-8">
             <h1 className="history-title">Historial de Tiempo</h1>
             <button
@@ -374,13 +391,13 @@ export default function History() {
           )}
 
           <div className="mb-6">
-            <input
-              type="text"
+      <input
+        type="text"
               className="w-full p-3 border border-[#333] rounded-xl mb-8 text-base bg-[#2a2a2a] text-white transition-all duration-300 focus:outline-none focus:border-[#00c6ff] focus:shadow-[0_0_0_2px_rgba(0,198,255,0.2)]"
               placeholder="🔍 Buscar proyecto..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
           </div>
 
           {Object.keys(groupedEntries).length === 0 ? (
@@ -430,7 +447,61 @@ export default function History() {
                           key={entry.id}
                           className="bg-[#333] p-3 rounded-lg flex justify-between items-center"
                         >
-                          <p className="text-gray-400">{entry.description || 'Sin descripción'}</p>
+                          <div className="flex-1">
+                            {editingEntry === entry.id ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={entry.description}
+                                  onChange={(e) => {
+                                    const updatedEntries = timeEntries.map(t => 
+                                      t.id === entry.id ? { ...t, description: e.target.value } : t
+                                    );
+                                    setTimeEntries(updatedEntries);
+                                  }}
+                                  className="history-input flex-1"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleEditEntry(entry.id, entry.description)}
+                                  className="text-[#00ffff] hover:text-[#00cccc] transition-colors"
+                                  disabled={isDeleting || isLoading}
+                                  title="Guardar cambios"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingEntry(null);
+                                    fetchTimeEntries();
+                                  }}
+                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                  disabled={isDeleting || isLoading}
+                                  title="Cancelar edición"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="text-gray-400">{entry.description || 'Sin descripción'}</p>
+                                <button
+                                  onClick={() => setEditingEntry(entry.id)}
+                                  className="text-[#00ffff] hover:text-[#00cccc] transition-colors"
+                                  disabled={isDeleting || isLoading}
+                                  title="Editar descripción"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <div className="flex items-center gap-4">
                             <div className="text-right">
                               <p className="text-[#00ffff]">{formatDuration(entry.totalMinutes)}</p>
