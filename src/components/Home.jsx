@@ -1,6 +1,5 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import MainMenu from './MainMenu';
 import Timer from './Timer';
 
 const Home = () => {
@@ -11,7 +10,7 @@ const Home = () => {
       <div className="content-container">
         {user ? (
           <div className="logged-in-container">
-            <MainMenu />
+            <Home />
             <Timer />
           </div>
         ) : (
