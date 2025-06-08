@@ -1,27 +1,25 @@
+// src/components/Login.jsx
 import React, { useState } from "react";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { auth, signInWithEmailAndPassword } from "../auth/firebase";
 
-function Login() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const auth = getAuth();
 
-  const handleSubmit = async (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/home");
+      // Redirige si quieres, por ejemplo: window.location.href = "/";
     } catch (error) {
-      setError("Error al iniciar sesión: " + error.message);
+      setError("Error: " + error.message);
     }
   };
 
   return (
-    <div className="page-container">
-      <div className="content-container">
+    <div className="page-container flex items-center justify-center min-h-screen">
+      <div className="content-container w-full max-w-md">
         <div className="login-box">
           <h1 className="login-title">Iniciar Sesión</h1>
           {error && (
@@ -29,7 +27,7 @@ function Login() {
               {error}
             </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleEmailLogin} className="space-y-6">
             <div>
               <label className="block text-white mb-2">Email</label>
               <input
@@ -62,5 +60,3 @@ function Login() {
     </div>
   );
 }
-
-export default Login; 

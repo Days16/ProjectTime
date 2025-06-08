@@ -1,10 +1,22 @@
 // src/components/Dashboard.jsx
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { auth } from "../auth/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    }
+  };
 
   if (loading) {
     return (
@@ -24,7 +36,12 @@ function Dashboard() {
         </h1>
         <div className="text-center text-white text-lg">
           <p className="mb-4">👤 {user.displayName || user.email}</p>
-          <p className="text-[#00ffff]">Tu panel de control está listo</p>
+              <button
+                onClick={handleLogout}
+                className="nav-link"
+              >
+                Cerrar Sesión
+              </button>
         </div>
       </div>
     </div>
