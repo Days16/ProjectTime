@@ -2,8 +2,7 @@
 import React from "react";
 import { Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { auth } from "../auth/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../config/firebase";
 
 function Dashboard() {
   const { user, loading, logout } = useAuth();

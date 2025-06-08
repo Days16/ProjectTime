@@ -1,5 +1,5 @@
 // src/database/firestoreService.js
-import { db } from "../auth/firebase"
+import { db } from "../config/firebase"
 import {
   collection,
   addDoc,
