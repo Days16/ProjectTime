@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { auth, db } from "../config/firebase";
 import { collection, addDoc, query, where, getDocs, orderBy, deleteDoc, doc, updateDoc, writeBatch } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useAuth } from "../context/AuthContext";
 
 function AsistenciaPage() {
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
   const [registros, setRegistros] = useState([]);
   const [proyecto, setProyecto] = useState("");
   const [ultimoRegistro, setUltimoRegistro] = useState(null);
@@ -379,5 +379,5 @@ function AsistenciaPage() {
   );
 }
 
-export default AsistenciaPage;
+  export default AsistenciaPage;
   

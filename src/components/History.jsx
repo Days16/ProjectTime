@@ -177,7 +177,7 @@ export default function History() {
   return (
     <div className="page-container">
       <div className="content-container">
-        <div className="history-container">
+    <div className="history-container">
           <h1 className="history-title">Historial de Tiempo</h1>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-4xl bg-gradient-to-r from-[#00c6ff] to-[#0072ff] bg-clip-text text-transparent">Gestión de Horas por Proyecto</h2>
@@ -241,20 +241,20 @@ export default function History() {
           </div>
 
           <div className="mb-6">
-            <input
-              type="text"
+      <input
+        type="text"
               className="w-full p-3 border border-[#333] rounded-xl mb-8 text-base bg-[#2a2a2a] text-white transition-all duration-300 focus:outline-none focus:border-[#00c6ff] focus:shadow-[0_0_0_2px_rgba(0,198,255,0.2)]"
               placeholder="🔍 Buscar proyecto..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-[#2a2a2a] p-6 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)]">
               <h3 className="text-xl font-semibold mb-4 text-[#00c6ff]">Registros Recientes</h3>
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                {filteredHistory.map((item) => (
+        {filteredHistory.map((item) => (
                   <div key={item.id} className="bg-[#333] p-4 rounded-lg mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-all duration-200 hover:bg-[#3a3a3a] hover:-translate-y-0.5">
                     {editingEntry?.id === item.id ? (
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
