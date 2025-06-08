@@ -16,7 +16,7 @@ import {
   doc,
   updateDoc,
 } from 'firebase/firestore'
-import { db } from '../auth/firebase'
+import { db } from '../config/firebase'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import * as XLSX from 'xlsx'

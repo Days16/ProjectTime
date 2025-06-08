@@ -9,7 +9,7 @@ import {
   doc,
   deleteDoc,
 } from "firebase/firestore";
-import { db } from "../auth/firebase";
+import { db } from "../config/firebase";  
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 function ProyectosPage() {
