@@ -37,9 +37,6 @@ function Navbar() {
             </Link>
             {user && (
               <>
-                <Link to="/dashboard" className="nav-link">
-                  Dashboard
-                </Link>
                 <Link to="/hour-management" className="nav-link">
                   Historial de Tiempo
                 </Link>

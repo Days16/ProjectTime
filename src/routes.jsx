@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import Login from './pages/Login';
+import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/DashboardPage';
 import HourManagementPage from './pages/HourManagementPage';
 import ProyectosPage from './pages/ProyectosPage';
@@ -21,7 +21,7 @@ const AppRoutes = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route
           path="/dashboard"
           element={
@@ -54,7 +54,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </div>
   );
