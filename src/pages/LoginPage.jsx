@@ -1,12 +1,23 @@
 // src/components/Login.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { auth, signInWithEmailAndPassword } from "../config/firebase";  
+import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Si el usuario ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -43,7 +54,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Redirige si quieres, por ejemplo: window.location.href = "/";
+      // La redirección se manejará automáticamente en el AuthContext
+      // y en el useEffect de este componente
     } catch (error) {
       let errorMessage = "Error al iniciar sesión";
       
@@ -69,6 +81,15 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // Si el usuario ya está autenticado, mostrar loading
+  if (user) {
+    return (
+      <div className="page-container flex items-center justify-center min-h-screen">
+        <div className="text-white text-xl">Redirigiendo al dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container flex items-center justify-center min-h-screen">

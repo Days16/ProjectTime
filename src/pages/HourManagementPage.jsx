@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { getUserHistory, updateHistoryEntry } from "../database/firestoreService"
 import { cacheService } from "../utils/cacheService"
 import { exportService } from "../utils/exportService"
 import { useNotification } from "../components/Notification"
 import { useAuth } from "../context/AuthContext"
+import SearchAndFilters from "../components/SearchAndFilters"
 import {
   collection,
   addDoc,
@@ -20,6 +21,7 @@ import { db } from '../config/firebase'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import * as XLSX from 'xlsx'
+import { filterData } from '../utils/chartDataUtils'
 
 export default function HourManagementPage() {
   const { user } = useAuth()
@@ -40,6 +42,8 @@ export default function HourManagementPage() {
   const [groupedEntries, setGroupedEntries] = useState({})
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [filters, setFilters] = useState({})
+  const [filteredTimeEntries, setFilteredTimeEntries] = useState([])
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false)
@@ -62,8 +66,12 @@ export default function HourManagementPage() {
   }, [user])
 
   useEffect(() => {
-    if (timeEntries.length > 0) {
-      const grouped = timeEntries.reduce((acc, entry) => {
+    // Aplicar filtros a las entradas de tiempo
+    const filtered = filterData(timeEntries, filters);
+    setFilteredTimeEntries(filtered);
+    
+    if (filtered.length > 0) {
+      const grouped = filtered.reduce((acc, entry) => {
         if (!acc[entry.project]) {
           acc[entry.project] = {
             totalMinutes: 0,
@@ -83,7 +91,7 @@ export default function HourManagementPage() {
       setGroupedEntries({});
     }
     setIsLoading(false);
-  }, [timeEntries]);
+  }, [timeEntries, filters]);
 
   const fetchHistory = async () => {
     try {
@@ -244,55 +252,37 @@ export default function HourManagementPage() {
     }
   }
 
-  const handleExport = async (format) => {
-    try {
-      if (format === "pdf") {
-        await exportService.exportToPDF(history, "Historial de Horas")
-        addNotification("Exportación a PDF completada", "success")
-      } else if (format === "excel") {
-        await exportService.exportToExcel(history, "Historial de Horas")
-        addNotification("Exportación a Excel completada", "success")
-      }
-    } catch (error) {
-      console.error("Error al exportar:", error)
-      addNotification("Error al exportar los datos", "error")
-    }
-  }
+  const handleFiltersChange = useCallback((newFilters) => {
+    setFilters(newFilters);
+  }, []);
 
   const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600).toString().padStart(2, "0")
-    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0")
-    const s = (seconds % 60).toString().padStart(2, "0")
-    return `${h}:${m}:${s}`
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return `${hours}h ${minutes}m`
   }
 
   const parseTimeToSeconds = (timeStr) => {
-    const [h, m, s] = timeStr.split(":").map(Number)
-    return h * 3600 + m * 60 + s
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    return (hours * 3600) + (minutes * 60)
   }
 
-  const filteredHistory = filter
-    ? history.filter((item) =>
-        item.project?.toLowerCase().includes(filter.toLowerCase())
-      )
-    : history
-
   const formatDate = (date) => {
-    if (!date) return 'Fecha no disponible';
-    return new Intl.DateTimeFormat('es-ES', {
+    if (!date) return 'Fecha no disponible'
+    const d = date instanceof Date ? date : date.toDate()
+    return d.toLocaleDateString('es-ES', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date)
+    })
   }
 
   const formatDuration = (minutes) => {
-    if (!minutes) return '0h 0m';
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
   }
 
   const handleDeleteProject = async (project) => {
@@ -459,17 +449,7 @@ export default function HourManagementPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="page-container">
-        <div className="content-container">
-          <div className="history-container">
-            <div className="flex justify-center items-center h-64">
-              <p className="text-[#00ffff]">Cargando datos...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="flex justify-center items-center min-h-screen text-white">Cargando...</div>;
   }
 
   return (
@@ -510,6 +490,17 @@ export default function HourManagementPage() {
               </button>
             </div>
           </div>
+
+          {/* Filtros avanzados */}
+          <SearchAndFilters
+            onFiltersChange={handleFiltersChange}
+            projects={timeEntries.map(entry => ({ project: entry.project }))}
+            showDateFilter={true}
+            showProjectFilter={true}
+            showStatusFilter={false}
+            showTimeFilter={true}
+            placeholder="Buscar en proyectos y descripciones..."
+          />
 
           {isAddingEntry && (
             <div className="bg-[#2a2a2a] p-6 rounded-xl mb-8">
@@ -588,19 +579,13 @@ export default function HourManagementPage() {
             </div>
           )}
 
-          <div className="mb-6">
-      <input
-        type="text"
-              className="w-full p-3 border border-[#333] rounded-xl mb-8 text-base bg-[#2a2a2a] text-white transition-all duration-300 focus:outline-none focus:border-[#00c6ff] focus:shadow-[0_0_0_2px_rgba(0,198,255,0.2)]"
-              placeholder="🔍 Buscar proyecto..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
-          </div>
-
           {Object.keys(groupedEntries).length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">No hay registros de tiempo. ¡Añade tu primer registro!</p>
+              <p className="text-gray-400">
+                {filteredTimeEntries.length === 0 && timeEntries.length > 0 
+                  ? "No hay registros que coincidan con los filtros aplicados." 
+                  : "No hay registros de tiempo. ¡Añade tu primer registro!"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">

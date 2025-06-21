@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   collection,
   addDoc,
@@ -8,54 +8,72 @@ import {
   updateDoc,
   doc,
   deleteDoc,
+  orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";  
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useNotification } from "../components/Notification";
+import SearchAndFilters from "../components/SearchAndFilters";
+import { filterData } from "../utils/chartDataUtils";
+import { useAuth } from '../context/AuthContext';
 
 function ProyectosPage() {
+  const { user } = useAuth();
+  const { addNotification } = useNotification();
   const [proyectos, setProyectos] = useState([]);
   const [nuevoProyecto, setNuevoProyecto] = useState("");
   const [nuevoEstado, setNuevoEstado] = useState("Pendiente");
-  const [user, setUser] = useState(null);
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState({});
+  const [filteredProyectos, setFilteredProyectos] = useState([]);
 
-  const { addNotification } = useNotification();
   const auth = getAuth();
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      if (currentUser) {
+        fetchProyectos();
+      } else {
+        setProyectos([]);
+      }
     });
     return () => unsubscribeAuth();
   }, [auth]);
 
   useEffect(() => {
-    if (!user) {
-      setProyectos([]);
-      return;
+    // Aplicar filtros a los proyectos
+    const filtered = filterData(proyectos, filters);
+    setFilteredProyectos(filtered);
+  }, [proyectos, filters]);
+
+  const fetchProyectos = async () => {
+    try {
+      setIsLoading(true);
+      const proyectosRef = collection(db, "proyectos");
+      const q = query(
+        proyectosRef,
+        where("ownerId", "==", user.uid),
+        orderBy("fechaCreacion", "desc")
+      );
+      const data = await getDocs(q);
+      const lista = data.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        fechaCreacion: doc.data().fechaCreacion?.toDate(),
+        fechaInicio: doc.data().fechaInicio ? new Date(doc.data().fechaInicio) : null,
+        fechaFin: doc.data().fechaFin ? new Date(doc.data().fechaFin) : null,
+      }));
+      setProyectos(lista);
+    } catch (error) {
+      console.error("Error al cargar proyectos:", error);
+      addNotification("Error al cargar los proyectos", "error");
+    } finally {
+      setIsLoading(false);
     }
-
-    const fetchProyectos = async () => {
-      try {
-        const proyectosRef = collection(db, "proyectos");
-        const q = query(proyectosRef, where("ownerId", "==", user.uid));
-        const data = await getDocs(q);
-        const lista = data.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setProyectos(lista);
-      } catch (error) {
-        console.error("Error al cargar proyectos:", error);
-        addNotification("Error al cargar los proyectos", "error");
-      }
-    };
-
-    fetchProyectos();
-  }, [user, addNotification]);
+  };
 
   const validateNewProject = () => {
     if (!nuevoProyecto.trim()) {
@@ -160,6 +178,10 @@ function ProyectosPage() {
     }
   };
 
+  const handleFiltersChange = useCallback((newFilters) => {
+    setFilters(newFilters);
+  }, []);
+
   const getStatusColor = (estado) => {
     switch (estado) {
       case 'En progreso':
@@ -201,6 +223,17 @@ function ProyectosPage() {
               Nuevo Proyecto
             </button>
           </div>
+
+          {/* Filtros avanzados */}
+          <SearchAndFilters
+            onFiltersChange={handleFiltersChange}
+            projects={proyectos}
+            showDateFilter={false}
+            showProjectFilter={false}
+            showStatusFilter={true}
+            showTimeFilter={false}
+            placeholder="Buscar proyectos..."
+          />
 
           {isAddingProject && (
             <div className="bg-[#2a2a2a] p-6 rounded-xl mb-8">
@@ -256,13 +289,17 @@ function ProyectosPage() {
             </div>
           )}
 
-          {proyectos.length === 0 ? (
+          {filteredProyectos.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">No tienes proyectos aún. ¡Crea tu primer proyecto!</p>
+              <p className="text-gray-400">
+                {proyectos.length === 0 
+                  ? "No tienes proyectos aún. ¡Crea tu primer proyecto!" 
+                  : "No hay proyectos que coincidan con los filtros aplicados."}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {proyectos.map((proyecto) => (
+              {filteredProyectos.map((proyecto) => (
                 <div
                   key={proyecto.id}
                   className="bg-[#2a2a2a] p-6 rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300"

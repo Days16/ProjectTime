@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { auth, db } from "../config/firebase";
 import { collection, addDoc, query, where, getDocs, orderBy, deleteDoc, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useNotification } from "../components/Notification";
+import SearchAndFilters from "../components/SearchAndFilters";
+import { filterData } from "../utils/chartDataUtils";
 
 function AsistenciaPage() {
   const [user] = useAuthState(auth);
@@ -16,6 +18,8 @@ function AsistenciaPage() {
   const [nombreEditado, setNombreEditado] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [filters, setFilters] = useState({});
+  const [filteredRegistros, setFilteredRegistros] = useState([]);
 
   const { addNotification } = useNotification();
 
@@ -25,6 +29,12 @@ function AsistenciaPage() {
       cargarProyectos();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Aplicar filtros a los registros
+    const filtered = filterData(registros, filters);
+    setFilteredRegistros(filtered);
+  }, [registros, filters]);
 
   const cargarProyectos = async () => {
     try {
@@ -264,6 +274,10 @@ function AsistenciaPage() {
     }
   };
 
+  const handleFiltersChange = useCallback((newFilters) => {
+    setFilters(newFilters);
+  }, []);
+
   const calcularDuracion = (registro) => {
     if (registro.tipo === "entrada") {
       const siguienteRegistro = registros.find(r => 
@@ -294,6 +308,17 @@ function AsistenciaPage() {
           <h1 className="text-4xl bg-gradient-to-r from-[#ff66cc] to-[#00ffff] bg-clip-text text-transparent mb-8 text-center">
             Control de Asistencia
           </h1>
+
+          {/* Filtros avanzados */}
+          <SearchAndFilters
+            onFiltersChange={handleFiltersChange}
+            projects={proyectos}
+            showDateFilter={true}
+            showProjectFilter={true}
+            showStatusFilter={false}
+            showTimeFilter={false}
+            placeholder="Buscar en registros de asistencia..."
+          />
 
           {/* Gestión de Proyectos */}
           <div className="bg-[#2a2a2a] rounded-[20px] shadow-[0_0_25px_rgba(0,255,255,0.05)] p-6 mb-8">
@@ -432,8 +457,12 @@ function AsistenciaPage() {
           {/* Historial de Registros */}
           <div className="bg-[#2a2a2a] rounded-[20px] shadow-[0_0_25px_rgba(0,255,255,0.05)] p-6">
             <h2 className="text-2xl font-semibold text-white mb-4">Últimos Registros</h2>
-            {registros.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">No hay registros de asistencia aún.</p>
+            {filteredRegistros.length === 0 ? (
+              <p className="text-gray-400 text-center py-8">
+                {registros.length === 0 
+                  ? "No hay registros de asistencia aún." 
+                  : "No hay registros que coincidan con los filtros aplicados."}
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full">
@@ -454,7 +483,7 @@ function AsistenciaPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#3a3a3a]">
-                    {registros.map((registro) => (
+                    {filteredRegistros.map((registro) => (
                       <tr key={registro.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                           {new Date(registro.fecha.toDate()).toLocaleString()}
