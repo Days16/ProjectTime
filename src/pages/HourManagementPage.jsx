@@ -131,16 +131,60 @@ export default function HourManagementPage() {
     }
   }
 
+  const validateNewEntry = () => {
+    if (!newEntry.project.trim()) {
+      addNotification("Por favor, ingresa el nombre del proyecto", "error");
+      return false;
+    }
+    
+    if (newEntry.project.trim().length < 3) {
+      addNotification("El nombre del proyecto debe tener al menos 3 caracteres", "error");
+      return false;
+    }
+    
+    if (newEntry.project.trim().length > 100) {
+      addNotification("El nombre del proyecto no puede exceder 100 caracteres", "error");
+      return false;
+    }
+    
+    if (!newEntry.hours || !newEntry.minutes) {
+      addNotification("Por favor, ingresa las horas y minutos", "error");
+      return false;
+    }
+    
+    const hours = parseInt(newEntry.hours);
+    const minutes = parseInt(newEntry.minutes);
+    
+    if (isNaN(hours) || hours < 0) {
+      addNotification("Las horas deben ser un número válido mayor o igual a 0", "error");
+      return false;
+    }
+    
+    if (isNaN(minutes) || minutes < 0 || minutes > 59) {
+      addNotification("Los minutos deben ser un número entre 0 y 59", "error");
+      return false;
+    }
+    
+    if (hours === 0 && minutes === 0) {
+      addNotification("El tiempo registrado debe ser mayor a 0", "error");
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleAddEntry = async () => {
-    if (!newEntry.project || !newEntry.hours || !newEntry.minutes) return;
+    if (!validateNewEntry()) {
+      return;
+    }
 
     try {
       setIsLoading(true);
       const totalMinutes = (parseInt(newEntry.hours) * 60) + parseInt(newEntry.minutes);
       const entryData = {
         userId: user.uid,
-        project: newEntry.project,
-        description: newEntry.description,
+        project: newEntry.project.trim(),
+        description: newEntry.description.trim(),
         totalMinutes,
         timestamp: serverTimestamp(),
       };
@@ -149,8 +193,10 @@ export default function HourManagementPage() {
       setNewEntry({ project: '', description: '', hours: '', minutes: '' });
       setIsAddingEntry(false);
       await fetchTimeEntries(); // Esperar a que se actualicen los datos
+      addNotification("Tiempo registrado exitosamente", "success");
     } catch (error) {
       console.error('Error al añadir entrada:', error);
+      addNotification("Error al registrar el tiempo", "error");
     } finally {
       setIsLoading(false);
     }
@@ -183,14 +229,16 @@ export default function HourManagementPage() {
   }
 
   const handleDeleteEntry = async (entryId) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer.')) return;
 
     try {
       setIsDeleting(true);
       await deleteDoc(doc(db, 'timeEntries', entryId));
       await fetchTimeEntries(); // Esperar a que se actualicen los datos
+      addNotification("Registro eliminado exitosamente", "success");
     } catch (error) {
       console.error('Error al eliminar entrada:', error);
+      addNotification("Error al eliminar el registro", "error");
     } finally {
       setIsDeleting(false);
     }
@@ -248,139 +296,167 @@ export default function HourManagementPage() {
   }
 
   const handleDeleteProject = async (project) => {
-    if (!window.confirm(`¿Estás seguro de que quieres eliminar todos los registros del proyecto "${project}"?`)) return;
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar el proyecto "${project}" y todos sus registros? Esta acción no se puede deshacer.`)) return;
 
     try {
       setIsDeleting(true);
-      const entriesToDelete = groupedEntries[project].entries;
-      const deletePromises = entriesToDelete.map(entry => 
-        deleteDoc(doc(db, 'timeEntries', entry.id))
+      
+      // Obtener todas las entradas del proyecto
+      const entriesRef = collection(db, 'timeEntries');
+      const q = query(
+        entriesRef,
+        where('userId', '==', user.uid),
+        where('project', '==', project)
       );
+      
+      const querySnapshot = await getDocs(q);
+      
+      // Eliminar todas las entradas del proyecto
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
-      await fetchTimeEntries(); // Esperar a que se actualicen los datos
+      
+      await fetchTimeEntries();
+      addNotification(`Proyecto "${project}" eliminado exitosamente`, "success");
     } catch (error) {
       console.error('Error al eliminar proyecto:', error);
+      addNotification("Error al eliminar el proyecto", "error");
     } finally {
       setIsDeleting(false);
     }
-  };
+  }
 
   const handleEditEntry = async (entryId, newDescription) => {
+    if (!newDescription.trim()) {
+      addNotification("La descripción no puede estar vacía", "error");
+      return;
+    }
+    
+    if (newDescription.trim().length > 500) {
+      addNotification("La descripción no puede exceder 500 caracteres", "error");
+      return;
+    }
+
     try {
-      setIsLoading(true);
-      const entryRef = doc(db, 'timeEntries', entryId);
-      await updateDoc(entryRef, {
-        description: newDescription,
+      await updateDoc(doc(db, 'timeEntries', entryId), {
+        description: newDescription.trim()
       });
       await fetchTimeEntries();
       setEditingEntry(null);
+      addNotification("Descripción actualizada exitosamente", "success");
     } catch (error) {
       console.error('Error al editar entrada:', error);
-    } finally {
-      setIsLoading(false);
+      addNotification("Error al actualizar la descripción", "error");
     }
-  };
+  }
 
   const exportToPDF = () => {
+    if (Object.keys(groupedEntries).length === 0) {
+      addNotification("No hay datos para exportar", "error");
+      return;
+    }
+
     try {
       const doc = new jsPDF();
       
       // Título
       doc.setFontSize(20);
-      doc.text('Historial de Tiempo', 14, 15);
+      doc.text('Reporte de Tiempo por Proyecto', 20, 20);
       
-      // Fecha de generación
-      doc.setFontSize(10);
-      doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')}`, 14, 25);
+      let yPosition = 40;
       
-      let yPosition = 35;
-      
-      // Para cada proyecto
       Object.entries(groupedEntries).forEach(([project, data]) => {
-        // Título del proyecto
+        // Nombre del proyecto
         doc.setFontSize(14);
-        doc.text(project, 14, yPosition);
+        doc.text(project, 20, yPosition);
         yPosition += 10;
         
-        // Total del proyecto
+        // Total de tiempo
         doc.setFontSize(12);
-        doc.text(`Total: ${formatDuration(data.totalMinutes)}`, 14, yPosition);
+        doc.text(`Total: ${formatDuration(data.totalMinutes)}`, 20, yPosition);
         yPosition += 10;
         
-        // Tabla de registros
-        const tableData = data.entries.map(entry => [
-          formatDate(entry.timestamp),
-          entry.description || 'Sin descripción',
-          formatDuration(entry.totalMinutes)
-        ]);
-        
-        doc.autoTable({
-          startY: yPosition,
-          head: [['Fecha', 'Descripción', 'Duración']],
-          body: tableData,
-          theme: 'grid',
-          headStyles: { fillColor: [0, 0, 0] },
-          styles: { fontSize: 10 },
-          margin: { left: 14 }
+        // Registros individuales
+        doc.setFontSize(10);
+        data.entries.forEach(entry => {
+          const description = entry.description || 'Sin descripción';
+          const time = formatDuration(entry.totalMinutes);
+          const date = formatDate(entry.timestamp);
+          
+          doc.text(`${date} - ${time} - ${description}`, 30, yPosition);
+          yPosition += 7;
         });
         
-        yPosition = doc.lastAutoTable.finalY + 15;
+        yPosition += 10;
+        
+        // Nueva página si es necesario
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
       });
       
-      // Guardar el PDF
-      doc.save('historial-tiempo.pdf');
+      doc.save('reporte-tiempo.pdf');
+      addNotification("Reporte PDF exportado exitosamente", "success");
     } catch (error) {
-      console.error('Error al exportar a PDF:', error);
-      alert('Error al generar el PDF. Por favor, inténtalo de nuevo.');
+      console.error('Error al exportar PDF:', error);
+      addNotification("Error al exportar el PDF", "error");
     }
-  };
+  }
 
   const exportToExcel = () => {
+    if (Object.keys(groupedEntries).length === 0) {
+      addNotification("No hay datos para exportar", "error");
+      return;
+    }
+
     try {
-      // Crear un nuevo libro de Excel
-      const wb = XLSX.utils.book_new();
+      const workbook = XLSX.utils.book_new();
       
-      // Para cada proyecto, crear una hoja
+      // Crear datos para la hoja de resumen
+      const summaryData = [
+        ['Proyecto', 'Total Horas', 'Total Minutos', 'Número de Registros']
+      ];
+      
       Object.entries(groupedEntries).forEach(([project, data]) => {
-        // Preparar los datos
-        const excelData = [
-          ['Proyecto: ' + project],
-          ['Total: ' + formatDuration(data.totalMinutes)],
-          [], // Línea en blanco
-          ['Fecha', 'Descripción', 'Duración'] // Encabezados
-        ];
-        
-        // Añadir los registros
-        data.entries.forEach(entry => {
-          excelData.push([
-            formatDate(entry.timestamp),
-            entry.description || 'Sin descripción',
-            formatDuration(entry.totalMinutes)
-          ]);
-        });
-        
-        // Crear la hoja
-        const ws = XLSX.utils.aoa_to_sheet(excelData);
-        
-        // Ajustar el ancho de las columnas
-        const colWidths = [
-          { wch: 20 }, // Fecha
-          { wch: 40 }, // Descripción
-          { wch: 15 }  // Duración
-        ];
-        ws['!cols'] = colWidths;
-        
-        // Añadir la hoja al libro
-        XLSX.utils.book_append_sheet(wb, ws, project.substring(0, 31)); // Excel limita nombres de hojas a 31 caracteres
+        const totalHours = Math.floor(data.totalMinutes / 60);
+        const totalMinutes = data.totalMinutes % 60;
+        summaryData.push([
+          project,
+          totalHours,
+          totalMinutes,
+          data.entries.length
+        ]);
       });
       
-      // Guardar el archivo
-      XLSX.writeFile(wb, 'historial-tiempo.xlsx');
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+      
+      // Crear datos para la hoja de detalles
+      const detailData = [
+        ['Proyecto', 'Fecha', 'Tiempo (minutos)', 'Descripción']
+      ];
+      
+      Object.entries(groupedEntries).forEach(([project, data]) => {
+        data.entries.forEach(entry => {
+          detailData.push([
+            project,
+            formatDate(entry.timestamp),
+            entry.totalMinutes,
+            entry.description || 'Sin descripción'
+          ]);
+        });
+      });
+      
+      const detailSheet = XLSX.utils.aoa_to_sheet(detailData);
+      XLSX.utils.book_append_sheet(workbook, detailSheet, 'Detalles');
+      
+      XLSX.writeFile(workbook, 'reporte-tiempo.xlsx');
+      addNotification("Reporte Excel exportado exitosamente", "success");
     } catch (error) {
-      console.error('Error al exportar a Excel:', error);
-      alert('Error al generar el Excel. Por favor, inténtalo de nuevo.');
+      console.error('Error al exportar Excel:', error);
+      addNotification("Error al exportar el Excel", "error");
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -441,17 +517,21 @@ export default function HourManagementPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <input
                   type="text"
-                  placeholder="Proyecto"
+                  placeholder="Nombre del proyecto (mín. 3 caracteres)"
                   value={newEntry.project}
                   onChange={(e) => setNewEntry({ ...newEntry, project: e.target.value })}
                   className="history-input"
+                  disabled={isLoading}
+                  maxLength={100}
                 />
                 <input
                   type="text"
-                  placeholder="Descripción"
+                  placeholder="Descripción (opcional)"
                   value={newEntry.description}
                   onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
                   className="history-input"
+                  disabled={isLoading}
+                  maxLength={500}
                 />
                 <div className="flex gap-4">
                   <input
@@ -461,6 +541,8 @@ export default function HourManagementPage() {
                     onChange={(e) => setNewEntry({ ...newEntry, hours: e.target.value })}
                     className="history-input"
                     min="0"
+                    max="999"
+                    disabled={isLoading}
                   />
                   <input
                     type="number"
@@ -470,23 +552,27 @@ export default function HourManagementPage() {
                     className="history-input"
                     min="0"
                     max="59"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-4">
                 <button
-                  onClick={() => setIsAddingEntry(false)}
+                  onClick={() => {
+                    setIsAddingEntry(false);
+                    setNewEntry({ project: '', description: '', hours: '', minutes: '' });
+                  }}
                   className="btn-cancel"
-                  disabled={isDeleting || isLoading}
+                  disabled={isLoading}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAddEntry}
                   className="btn-success"
-                  disabled={isDeleting || isLoading}
+                  disabled={isLoading}
                 >
-                  Guardar
+                  {isLoading ? "Guardando..." : "Guardar"}
                 </button>
               </div>
             </div>
