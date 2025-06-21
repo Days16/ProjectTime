@@ -3,8 +3,8 @@
 Una aplicación web moderna para gestionar proyectos, registrar tiempo de trabajo y controlar asistencia. Desarrollada con React, Firebase y Tailwind CSS.
 
 ![ProjectTime](https://img.shields.io/badge/React-18.0.0-blue)
-![Firebase](https://img.shields.io/badge/Firebase-9.0.0-orange)
-![Tailwind](https://img.shields.io/badge/Tailwind-3.0.0-cyan)
+![Firebase](https://img.shields.io/badge/Firebase-10.8.0-orange)
+![Tailwind](https://img.shields.io/badge/Tailwind-18.2.0-cyan)
 
 ## ✨ Características Principales
 
